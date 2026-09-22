@@ -208,3 +208,78 @@ sops:
       Recommend high-visibility clothing or lights, delaying travel until the fog
       clears if possible, and checking real-time visibility immediately before
       departure rather than relying on the forecast alone.
+
+  - id: SOP-013
+    category: outdoor_exercise
+    title: "All-clear: no exercise risk factors triggered"
+    severity: low
+    overrides: false
+    condition: >
+      The user's core question is whether it's safe/fine to do outdoor exercise,
+      sport, running, cycling, or a workout for a given location and time window
+      -- i.e. the concern is general weather safety for the activity -- and NONE of
+      SOP-001, SOP-002, SOP-003, or SOP-004's conditions are actually satisfied by
+      the real weather data for that window (no elevated UV, no strong wind, no
+      heavy rain, no extreme heat). This SOP exists so a genuinely calm-weather
+      exercise question gets a definite, policy-grounded "yes" instead of falling
+      through to "no policy applies" -- absence of risk is still something this
+      catalog has an answer for, not a gap in coverage. Do NOT apply this SOP if the
+      user's actual concern is a factor this catalog doesn't track at all (pollen
+      count, air quality/AQI, allergens, insects, lightning, terrain, traffic,
+      etc.) even if the message also mentions an outdoor activity in passing --
+      that is still "no policy applies," not an all-clear, because we have no data
+      to check that specific concern against.
+    guidance: >
+      State plainly that none of the tracked risk factors (UV, wind, rain, heat) are
+      elevated for the requested window, so the activity looks fine to go ahead as
+      planned. Cite the specific numbers that were checked as the basis for the
+      all-clear, and note briefly that conditions can shift within the day for
+      anything time-sensitive.
+
+  - id: SOP-014
+    category: travel
+    title: "All-clear: no travel risk factors triggered"
+    severity: low
+    overrides: false
+    condition: >
+      The user's core question is whether it's safe/fine to travel, commute, drive,
+      or get somewhere for a given location and time window -- i.e. the concern is
+      general weather safety for the trip -- and NONE of SOP-005, SOP-006, or
+      SOP-007's conditions are actually satisfied by the real weather data for that
+      window (no high precipitation probability, no squally coastal wind, no active
+      regional rain/wind system). Exists for the same reason as SOP-013: a
+      genuinely calm travel question deserves a definite "yes," not a "no policy
+      applies." Do NOT apply this SOP if the user's actual concern is a factor this
+      catalog doesn't track (traffic, road closures, security, fuel, etc.) even if
+      the message also mentions travel in passing -- that is still "no policy
+      applies."
+    guidance: >
+      State plainly that none of the tracked travel risk factors (rain probability,
+      coastal wind, an active regional weather system) are present for the
+      requested window, so travel looks fine as planned. Cite the specific numbers
+      checked, and note that conditions can change, so it's still worth a quick
+      look at official sources for anything long-distance or time-critical.
+
+  - id: SOP-015
+    category: vulnerable_groups
+    title: "All-clear: no vulnerable-group risk factors triggered"
+    severity: low
+    overrides: false
+    condition: >
+      The user's question mentions a vulnerable individual (a child, an elderly
+      person, or a pet) and the core concern is general weather safety (UV, heat,
+      hot pavement) for an outdoor-activity question, for a given location and time
+      window, and NONE of SOP-008, SOP-009, or SOP-010's conditions are actually
+      satisfied by the real weather data for that window. Exists for the same
+      reason as SOP-013/SOP-014: a genuinely calm-weather question about a
+      vulnerable person deserves a definite "yes," not a "no policy applies." Do NOT
+      apply this SOP if the actual concern is a factor this catalog doesn't track
+      (allergies, traffic, animal aggression, etc.) even if a vulnerable person is
+      also mentioned -- that is still "no policy applies."
+    guidance: >
+      State plainly that none of the tracked risk factors for this group (high UV
+      for children, extreme heat for elderly people, hot pavement for pets) are
+      present for the requested window, so it looks fine to go ahead. Cite the
+      specific numbers checked, and add one brief general-comfort reminder
+      appropriate to who is going out (e.g. water, shade) without inventing a new
+      numeric threshold.

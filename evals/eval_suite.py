@@ -231,6 +231,24 @@ def case_5_live_bhopal():
 
 
 # ---------------------------------------------------------------------------
+# Case 6a: all-clear -- calm conditions still get a definite, policy-grounded "yes"
+# ---------------------------------------------------------------------------
+def case_6a_all_clear():
+    name = "Case 6a: all-clear -- calm weather still cites a policy, not a shrug"
+    checks = (
+        "matched_sop_id == 'SOP-013' on genuinely calm weather; answer is a definite "
+        "go-ahead grounded in the checked numbers, not a 'no policy applies' fallback"
+    )
+    weather_data = fake_forecast()  # mild, unremarkable conditions -- no risk SOP should fire
+    with patch("app.weather.geocode", return_value=fake_location(name="Pune")), \
+         patch("app.weather.fetch_forecast", return_value=weather_data):
+        g = new_graph()
+        result = run_turn(g, str(uuid.uuid4()), "Is it safe to go for a bike ride in Pune this afternoon?")
+    passed = result.get("matched_sop_id") == "SOP-013" and "No written policy" not in result["final_answer"]
+    record(name, checks, passed, f"matched_sop_id={result.get('matched_sop_id')}")
+
+
+# ---------------------------------------------------------------------------
 # Case 6: no SOP applies -- honest "we don't have guidance" (no fabricated advice)
 # ---------------------------------------------------------------------------
 def case_6_no_match():
@@ -304,6 +322,7 @@ CASES = [
     case_3_paraphrase_elderly_heat,
     case_4_paraphrase_coastal_wind,
     case_5_live_bhopal,
+    case_6a_all_clear,
     case_6_no_match,
     case_7_api_unreachable,
     case_8_adversarial_injection,

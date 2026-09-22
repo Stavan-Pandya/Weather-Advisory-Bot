@@ -20,17 +20,36 @@ default. Put your key in `.env` (never commit it — `.gitignore` already exclud
 different provider/model only touches `app/llm.py` — nothing else in the graph, weather client, or
 SOPs depends on which LLM is behind `get_llm()`.
 
+**Note on Groq's free tier:** it caps each model at 200,000 tokens/day, tracked *per model*. Heavy
+iteration during development exhausted the `gpt-oss-120b` quota (see `evals/results.md`) — the fix
+was simply setting `MODEL_NAME=openai/gpt-oss-20b` in `.env`, a smaller model on a separate quota
+bucket, with no code change. If you hit a `429 rate_limit_exceeded`, that's what's happening; either
+wait for the quota to refill or switch models the same way.
+
 ## Run
 
-**Backend + frontend together** (Streamlit is both — there's no separate server process):
+Backend and frontend are two separate processes: a FastAPI server exposing the LangGraph agent,
+and a React (Vite) chat UI that talks to it over HTTP.
+
+**1. Backend** (from the repo root, with the venv active):
 
 ```bash
-streamlit run frontend/streamlit_app.py
+uvicorn app.api:app --port 8000
 ```
 
-Open the URL Streamlit prints, type a question, get a reply in a conversational thread.
-Follow-up questions in the same browser session share memory (LangGraph checkpointer keyed by
-a per-session `thread_id`); click "New session" in the sidebar to reset it.
+**2. Frontend** (in a second terminal):
+
+```bash
+cd frontend
+npm install     # first time only
+npm run dev
+```
+
+Open the URL Vite prints (typically `http://localhost:5173`), type a question, get a reply in a
+conversational thread. Follow-up questions in the same browser tab share memory (LangGraph
+checkpointer keyed by a per-session `thread_id` generated client-side); click "New session" in the
+sidebar to reset it. If the backend runs somewhere other than `http://localhost:8000`, set
+`VITE_API_URL` in `frontend/.env` (copy from `frontend/.env.example`).
 
 **Eval suite**:
 
@@ -48,16 +67,29 @@ app/
   llm.py                     # model config + structured-output schemas
   state.py                   # LangGraph state schema
   graph.py                   # the graph: nodes, routing, prompts
-frontend/streamlit_app.py    # chat UI
+  api.py                     # FastAPI wrapper around the graph (the only new logic: none)
+frontend/                   # React (Vite) chat UI — talks to app/api.py over HTTP
 evals/eval_suite.py          # eval suite (see below)
 ```
 
 ## The SOPs
 
-`sops.yaml` holds 12 SOPs across 4 categories (`outdoor_exercise`, `travel`, `vulnerable_groups`,
+`sops.yaml` holds 15 SOPs across 4 categories (`outdoor_exercise`, `travel`, `vulnerable_groups`,
 `general_leisure`), spanning severities `low` → `critical`, including one override SOP (SOP-007,
 for an active regional rain/wind system) and one fuzzy non-numeric SOP (SOP-011, "is today good
 for a picnic").
+
+**On "no SOP applies" vs. an honest "yes":** early manual testing surfaced a real design gap —
+every risk SOP (high UV, high wind, heavy rain, extreme heat) only fires *on* a risk. A calm-weather
+question like "is it safe to bike today?" correctly triggered none of them, which the graph
+originally treated identically to "we have no policy for this at all" and answered with the
+honest-no-guidance fallback. But those are different things: pollen forecasting is genuinely outside
+this catalog's domain; "no risk flags today" is squarely inside it, just underspecified as a policy.
+Fixed by adding three explicit "all-clear" SOPs (SOP-013/014/015, one per category with numeric
+thresholds) whose condition is literally "none of this category's risk SOPs are satisfied by the
+real data." That keeps the answer just as traceable to a written policy as a warning would be — it's
+matched and cited the same way — rather than quietly becoming free-floating LLM reassurance the
+moment nothing bad is happening.
 
 **Why YAML, and why this shape:** each SOP is `id`, `category`, `severity`, `overrides`,
 `condition` (natural language), `guidance` (natural language advice, not a template string).
@@ -136,12 +168,13 @@ way: no real numbers exist, so no advice gets given.
 
 ## Memory / session state
 
-LangGraph's `MemorySaver` checkpointer, keyed by a `thread_id` created once per Streamlit session.
-`state["messages"]` accumulates the full conversation (via `add_messages`); `resolved_location` /
-`activity_category` persist as separate state fields specifically so `extract_query` can resolve a
-bare follow-up ("what about this evening?") without re-asking for the city. Memory is in-process
-only — restarting the app or starting a "New session" clears it, matching the assignment's scope
-(no cross-session persistence required).
+LangGraph's `MemorySaver` checkpointer, keyed by a `thread_id` the React app generates once per
+browser tab (`crypto.randomUUID()`) and sends with every request. `state["messages"]` accumulates
+the full conversation (via `add_messages`); `resolved_location` / `activity_category` persist as
+separate state fields specifically so `extract_query` can resolve a bare follow-up ("what about
+this evening?") without re-asking for the city. Memory lives in the FastAPI process only —
+restarting the backend or clicking "New session" (which generates a fresh `thread_id`) clears it,
+matching the assignment's scope (no cross-session persistence required).
 
 ## Grounding — where it's actually enforced in code
 
