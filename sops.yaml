@@ -1,0 +1,210 @@
+# Standard Operating Procedures (SOPs) for the Weather-Advisory Support Bot.
+#
+# This file is the ONLY place policy lives. The graph code never hardcodes
+# thresholds or advice text — it loads this file fresh on every request, so
+# adding/editing/removing an SOP takes effect immediately with no code change
+# and no restart.
+#
+# Fields:
+#   id            Stable identifier, cited back to the user. Never reuse an id.
+#   category      Free-text grouping (outdoor_exercise, travel, vulnerable_groups,
+#                 general_leisure, ...). Not enforced by code, just organization.
+#   title         Short human label.
+#   severity      One of: low, moderate, high, critical. Used for tie-breaking
+#                 when more than one SOP's condition is satisfied.
+#   overrides     If true, this SOP takes precedence over every non-override SOP
+#                 regardless of severity, because it represents a situational risk
+#                 bigger than any single category (see SOP-007).
+#   condition     Natural-language description of when this SOP applies. This is
+#                 what the LLM matcher reads — it is deliberately NOT a code
+#                 expression, because some conditions (SOP-011) aren't reducible
+#                 to a clean threshold.
+#   guidance      The advice the bot is allowed to give when this SOP is matched.
+#                 The composing LLM may only paraphrase this text plus the actual
+#                 fetched weather numbers — it may not add advice that isn't here.
+
+sops:
+  - id: SOP-001
+    category: outdoor_exercise
+    title: High midday UV for outdoor exercise
+    severity: moderate
+    overrides: false
+    condition: >
+      The UV index is 8 or higher at some point between 11:00 and 16:00 local time
+      (today or the day being asked about), and the user is asking about outdoor
+      exercise, sport, running, cycling, or general sun exposure during that window.
+    guidance: >
+      Advise against unprotected outdoor exercise during the 11am-4pm window.
+      Recommend SPF 30+ sunscreen, sunglasses, and a hat, and suggest shifting
+      the activity to early morning or evening instead when UV is lower.
+
+  - id: SOP-002
+    category: outdoor_exercise
+    title: High wind and two-wheelers
+    severity: high
+    overrides: false
+    condition: >
+      Wind speed (10m) is forecast to exceed 40 km/h, or gusts exceed 55 km/h,
+      during the relevant window, and the user mentions cycling, biking, a
+      motorcycle, scooter, or any other two-wheeler.
+    guidance: >
+      Treat this as a genuine safety risk, not just discomfort: gusts at this
+      strength can destabilize a two-wheeler, especially on open roads, bridges,
+      or when overtaking. Recommend postponing, choosing a sheltered route, or
+      switching to a four-wheeled or indoor alternative.
+
+  - id: SOP-003
+    category: outdoor_exercise
+    title: Heavy rain during outdoor workouts
+    severity: moderate
+    overrides: false
+    condition: >
+      Precipitation probability is 80% or higher, or current/forecast precipitation
+      exceeds 7.5 mm/hour, during the relevant window, and the user is asking about
+      running, jogging, cycling, or a general outdoor workout (not travel).
+    guidance: >
+      Advise rescheduling strenuous outdoor exercise. Heavy rain reduces visibility
+      and traction, raising slip and collision risk for runners and cyclists alike.
+      Recommend an indoor alternative or waiting for a drier window later the same day.
+
+  - id: SOP-004
+    category: outdoor_exercise
+    title: Extreme heat during exertion
+    severity: high
+    overrides: false
+    condition: >
+      Actual temperature is forecast to exceed 38C during the relevant window, and
+      the user is asking about exercising, running, sport, or other physically
+      strenuous activity outdoors.
+    guidance: >
+      Warn of heat exhaustion and heatstroke risk during strenuous activity at this
+      temperature. Recommend moving the activity to before 8am or after 6pm,
+      hydrating well beforehand, and avoiding peak-heat hours entirely.
+
+  - id: SOP-005
+    category: travel
+    title: High precipitation probability and travel delays
+    severity: moderate
+    overrides: false
+    condition: >
+      Precipitation probability is 70% or higher during the relevant window, and
+      the user is asking about travel, commuting, driving, a road trip, or getting
+      somewhere (not exercise).
+    guidance: >
+      Warn of possible travel delays, standing water, and reduced visibility on the
+      road. Recommend checking local traffic or transit alerts before departure and
+      building extra time into the trip.
+
+  - id: SOP-006
+    category: travel
+    title: Squally coastal or marine winds
+    severity: high
+    overrides: false
+    condition: >
+      Wind speed exceeds 45 km/h or gusts exceed 60 km/h, and the user mentions
+      the coast, sea, fishing, boating, a ferry, or other marine/coastal travel.
+    guidance: >
+      Advise against sea travel, fishing, or small-boat activity at this wind
+      strength — squally winds are hazardous for vessels and coastal transit.
+      Recommend postponing marine travel and checking for port or fishing advisories
+      from the local maritime authority.
+
+  - id: SOP-007
+    category: travel
+    title: Active well-marked low-pressure or cyclonic rain system
+    severity: critical
+    overrides: true
+    condition: >
+      There are signs of a well-marked, sustained regional rain system rather than
+      an ordinary shower — approximated here as forecast daily precipitation of
+      64.5mm or more (India Meteorological Department's own "heavy rain" threshold)
+      on the day in question, OR any single hour forecast at 15mm or more
+      ("very heavy" hourly intensity), OR sustained wind/gusts above 55/70 km/h
+      across multiple consecutive hourly entries. When this is true, it applies
+      regardless of the user's specific activity category (exercise, travel,
+      leisure, vulnerable groups all count) because the situational risk is bigger
+      than any single threshold in isolation.
+    guidance: >
+      Treat every outdoor-activity question as high severity regardless of
+      category. Lead with the rain/wind system itself and its real numbers before
+      giving any activity-specific advice. Recommend deferring non-essential
+      outdoor plans entirely until local official advisories ease, and checking
+      the national meteorological department (e.g. IMD) or local disaster
+      management alerts directly rather than relying on this bot for real-time
+      bulletins.
+
+  - id: SOP-008
+    category: vulnerable_groups
+    title: Children and high UV
+    severity: high
+    overrides: false
+    condition: >
+      UV index reaches 8 or higher at some point in the relevant window, and the
+      user mentions taking a child, kid, baby, toddler, or infant outdoors.
+    guidance: >
+      Children's skin burns faster than adults'. Recommend avoiding the 11am-4pm
+      window entirely for children, using SPF 50+, hats, and shaded areas, and if
+      going out is unavoidable, keeping midday exposure under 20 minutes.
+
+  - id: SOP-009
+    category: vulnerable_groups
+    title: Elderly and extreme heat
+    severity: high
+    overrides: false
+    condition: >
+      Actual temperature is forecast to exceed 35C during the relevant window, and
+      the user mentions an elderly person, senior citizen, grandparent, or similar.
+    guidance: >
+      Elderly individuals face elevated heat-exhaustion and dehydration risk.
+      Recommend avoiding outdoor activity between 11am and 5pm, ensuring frequent
+      hydration, and keeping any outing brief and in the shade.
+
+  - id: SOP-010
+    category: vulnerable_groups
+    title: Pets and hot pavement
+    severity: moderate
+    overrides: false
+    condition: >
+      Actual temperature is forecast to exceed 30C during the relevant window, and
+      the user mentions a dog, cat, or other pet, especially walking one.
+    guidance: >
+      Hot pavement can burn paw pads well before the air temperature feels extreme
+      to a person. Recommend walking pets only in early morning or evening, testing
+      pavement with the back of a hand first, and carrying water for the animal.
+
+  - id: SOP-011
+    category: general_leisure
+    title: "Fuzzy judgment: is today good for a picnic or casual outdoor plan"
+    severity: low
+    overrides: false
+    condition: >
+      The user asks a general, non-numeric-threshold question about whether a day
+      or window is a "good day" for a picnic, outdoor gathering, sightseeing, or
+      similar low-exertion leisure activity, where no single hard threshold decides
+      it and the read has to weigh several comfort factors together.
+    guidance: >
+      This is a holistic judgment, not a single threshold check. Weigh precipitation
+      probability, wind, temperature comfort (roughly 18-30C is pleasant for most
+      people), and UV together. If precipitation probability is under 30%, wind is
+      calm to light, and temperature is in the comfortable range, describe it as a
+      good window. If exactly one factor sits outside comfortable range (rain likely,
+      very hot, notably windy, or high midday UV), name that specific factor as the
+      reason to adjust timing or bring gear (shade, rain cover, extra water), rather
+      than telling the user to cancel outright — unless another SOP already flags a
+      higher-severity risk for the same window, in which case that SOP's advice leads.
+      Always name the specific factors that were checked, even in a "good day" verdict.
+
+  - id: SOP-012
+    category: general_leisure
+    title: Fog or low visibility for morning plans
+    severity: moderate
+    overrides: false
+    condition: >
+      Forecast visibility drops below 1000 meters during the relevant window (a
+      proxy for fog), and the user is asking about outdoor exercise, travel,
+      sightseeing, or morning plans in general.
+    guidance: >
+      Warn of reduced visibility for driving, cycling, or being outdoors generally.
+      Recommend high-visibility clothing or lights, delaying travel until the fog
+      clears if possible, and checking real-time visibility immediately before
+      departure rather than relying on the forecast alone.
