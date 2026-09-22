@@ -14,7 +14,6 @@ from fastapi import FastAPI  # noqa: E402
 from fastapi.middleware.cors import CORSMiddleware  # noqa: E402
 from pydantic import BaseModel  # noqa: E402
 
-from app import weather  # noqa: E402
 from app.graph import build_graph, run_turn  # noqa: E402
 
 app = FastAPI(title="Weather-Advisory Support Bot API")
@@ -53,19 +52,3 @@ def chat(req: ChatRequest) -> ChatResponse:
 @app.get("/api/health")
 def health() -> dict:
     return {"status": "ok"}
-
-
-@app.get("/api/debug-weather")
-def debug_weather(city: str = "Bhopal") -> dict:
-    """Temporary diagnostic endpoint -- calls the Open-Meteo client directly and
-    surfaces the real exception, since the chat endpoint intentionally swallows
-    it into a generic honest-failure message for end users."""
-    try:
-        loc = weather.geocode(city)
-    except weather.WeatherLookupError as exc:
-        return {"stage": "geocode", "error": str(exc)}
-    try:
-        forecast = weather.fetch_forecast(loc.latitude, loc.longitude)
-    except weather.WeatherLookupError as exc:
-        return {"stage": "forecast", "error": str(exc), "location": loc.display_name}
-    return {"stage": "ok", "location": loc.display_name, "current": forecast["current"]}
