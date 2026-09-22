@@ -6,3 +6,6 @@ venv/
 .streamlit/secrets.toml
 *.egg-info/
 .pytest_cache/
+tools/
+node_modules/
+frontend/dist/

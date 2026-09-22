@@ -23,6 +23,26 @@ DAILY_FIELDS = "precipitation_sum,precipitation_probability_max,uv_index_max,win
 REQUEST_TIMEOUT_SECONDS = 10
 REQUEST_HEADERS = {"User-Agent": "weather-advisory-support-bot/1.0 (+https://github.com/Stavan-Pandya/Weather-Advisory-Bot)"}
 RETRY_ATTEMPTS = 3
+
+# Open-Meteo's geocoding data indexes several major Indian cities only under
+# their official post-renaming name, not the colloquial English name still in
+# everyday use -- e.g. searching "Bangalore" returns a small unrelated town in
+# Pakistan's Sindh province, because Bengaluru simply isn't aliased under it.
+# Found via live testing, not theoretical: this is a small, explicit patch for
+# the handful of cases most likely to come up, not a general solution -- an
+# unlisted colloquial name still falls through to Open-Meteo's raw top result.
+COLLOQUIAL_NAME_ALIASES = {
+    "bangalore": "Bengaluru",
+    "bombay": "Mumbai",
+    "calcutta": "Kolkata",
+    "madras": "Chennai",
+    "trivandrum": "Thiruvananthapuram",
+    "poona": "Pune",
+    "cochin": "Kochi",
+    "mysore": "Mysuru",
+    "gurgaon": "Gurugram",
+    "baroda": "Vadodara",
+}
 RETRY_BACKOFF_SECONDS = 1.5
 
 
@@ -76,10 +96,11 @@ class ResolvedLocation:
 
 
 def geocode(city_name: str) -> ResolvedLocation:
+    lookup_name = COLLOQUIAL_NAME_ALIASES.get(city_name.strip().lower(), city_name)
     try:
         resp = _get_with_retry(
             GEOCODING_URL,
-            params={"name": city_name, "count": 5, "language": "en", "format": "json"},
+            params={"name": lookup_name, "count": 5, "language": "en", "format": "json"},
         )
         data = resp.json()
     except requests.RequestException as exc:
