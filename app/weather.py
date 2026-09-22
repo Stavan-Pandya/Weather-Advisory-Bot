@@ -8,6 +8,7 @@ to interpolate values out of the dict this module returns, never to invent or
 from __future__ import annotations
 
 import datetime as dt
+import time
 from dataclasses import dataclass
 
 import requests
@@ -20,6 +21,30 @@ HOURLY_FIELDS = "temperature_2m,precipitation,precipitation_probability,wind_spe
 DAILY_FIELDS = "precipitation_sum,precipitation_probability_max,uv_index_max,wind_speed_10m_max,wind_gusts_10m_max"
 
 REQUEST_TIMEOUT_SECONDS = 10
+REQUEST_HEADERS = {"User-Agent": "weather-advisory-support-bot/1.0 (+https://github.com/Stavan-Pandya/Weather-Advisory-Bot)"}
+RETRY_ATTEMPTS = 3
+RETRY_BACKOFF_SECONDS = 1.5
+
+
+def _get_with_retry(url: str, params: dict) -> requests.Response:
+    """A 429 from Open-Meteo's free tier is often a shared-IP burst limit on
+    hosting platforms (many unrelated tenants sharing one egress IP), not our
+    own request volume -- worth a couple of short retries before giving up,
+    since the bucket can clear within seconds."""
+    last_exc: Exception | None = None
+    for attempt in range(RETRY_ATTEMPTS):
+        try:
+            resp = requests.get(url, params=params, timeout=REQUEST_TIMEOUT_SECONDS, headers=REQUEST_HEADERS)
+            if resp.status_code == 429 and attempt < RETRY_ATTEMPTS - 1:
+                time.sleep(RETRY_BACKOFF_SECONDS * (attempt + 1))
+                continue
+            resp.raise_for_status()
+            return resp
+        except requests.RequestException as exc:
+            last_exc = exc
+            if attempt < RETRY_ATTEMPTS - 1:
+                time.sleep(RETRY_BACKOFF_SECONDS * (attempt + 1))
+    raise last_exc
 
 
 class WeatherLookupError(Exception):
@@ -52,12 +77,10 @@ class ResolvedLocation:
 
 def geocode(city_name: str) -> ResolvedLocation:
     try:
-        resp = requests.get(
+        resp = _get_with_retry(
             GEOCODING_URL,
             params={"name": city_name, "count": 5, "language": "en", "format": "json"},
-            timeout=REQUEST_TIMEOUT_SECONDS,
         )
-        resp.raise_for_status()
         data = resp.json()
     except requests.RequestException as exc:
         raise WeatherLookupError(f"Geocoding request failed for '{city_name}': {exc}") from exc
@@ -79,7 +102,7 @@ def geocode(city_name: str) -> ResolvedLocation:
 def fetch_forecast(latitude: float, longitude: float) -> dict:
     """Returns a distilled forecast dict. Raises WeatherLookupError on failure."""
     try:
-        resp = requests.get(
+        resp = _get_with_retry(
             FORECAST_URL,
             params={
                 "latitude": latitude,
@@ -90,9 +113,7 @@ def fetch_forecast(latitude: float, longitude: float) -> dict:
                 "timezone": "auto",
                 "forecast_days": 2,
             },
-            timeout=REQUEST_TIMEOUT_SECONDS,
         )
-        resp.raise_for_status()
         data = resp.json()
     except requests.RequestException as exc:
         raise WeatherLookupError(f"Forecast request failed: {exc}") from exc
